@@ -30,13 +30,11 @@ def demonstracao_resultados():
     df_resultado = df_resultado.drop('calc', axis=1)
     df_resultado = df_resultado.fillna(0)
 
-
     # QUOTAS
     x = df_resultado.query("conta=='78882'")[['ano_0','ano_1','ano_2']]
     y = df_resultado.query("conta=='76'")[['ano_0','ano_1','ano_2']]
 
     df_resultado.loc[df_resultado['conta']=='QUOTAS',['ano_0','ano_1','ano_2']]= abs(x.values + y.values)
-
 
     # Diversos (78 - QUOTAS)
     x = df_resultado.query("conta=='78'")[['ano_0','ano_1','ano_2']]
