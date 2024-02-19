@@ -9,7 +9,10 @@ import io
 import base64
 import openpyxl
 
-st.set_page_config(layout="wide")
+import streamlit as st
+
+st.set_page_config(page_title="CP FSE", page_icon="🧊", layout="wide")
+
 hp.remove_footer(st)
 hp.remove_menu(st)
 
