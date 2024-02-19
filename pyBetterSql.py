@@ -1,32 +1,6 @@
-from sqlalchemy import event, create_engine
-from sqlalchemy.types import Integer, Text, String, DateTime, Float, Date
+
 import urllib
 import numpy as np
-
-
-def set_connection(server,database):
-    params = urllib.parse.quote_plus(r'DRIVER={SQL Server};'
-                                     f'SERVER={server};'
-                                     f'DATABASE={database};'
-                                     r'Trusted_Connection=yes')
-    conn_str = "mssql+pyodbc:///?odbc_connect={}".format(params)
- 
-    return conn_str
-
-conn_str = set_connection('SQLSERVER1','LABTEST')
-
-def create_connection(conn_str):
-    return create_engine(conn_str)
-
-sql_engine = create_connection(conn_str)
-
-# Tuning SQL Insert com o objetivo de melhorar os tempos de execução.
-# Jms@2020
-@event.listens_for(sql_engine, 'before_cursor_execute')
-def plugin_bef_cursor_execute(conn, cursor, statement, params, context,executemany):
-   if executemany:
-       cursor.fast_executemany = True
-       cursor.commit()
 
 '''
 Written by Joseph Gagliardo joey@me.com on 2021-06-05

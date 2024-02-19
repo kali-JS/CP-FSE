@@ -96,7 +96,7 @@ def demonstracao_resultados():
     
     return df_resultado
 
-@st.cache(allow_output_mutation=True)
+@st.cache_resource()
 def obter_saldo_conta (classe_conta, ano, mes):
     gc  = len(classe_conta)
     
@@ -114,7 +114,7 @@ def obter_saldo_conta (classe_conta, ano, mes):
 
     """)
 
-@st.cache(allow_output_mutation=True)
+@st.cache_resource()
 def obter_saldo_contas (contas, ano, mes):
     sql=''
     resultado_exec=[]
@@ -142,7 +142,7 @@ def obter_saldo_contas (contas, ano, mes):
     except Exception as e:
         return pd.DataFrame([])
 
-@st.cache(allow_output_mutation=True)
+@st.cache_resource()
 def obter_mov_conta (classe_conta, ano, mes):
     gc=len(classe_conta)
     return  q.sqldf(f"""
@@ -156,17 +156,17 @@ def obter_mov_conta (classe_conta, ano, mes):
             order by ano,mes,conta,subconta,nint
         """)    
 
-@st.cache(allow_output_mutation=True) 
+@st.cache_resource() 
 def load_extrato(uploaded_file):
     df = pd.read_excel(uploaded_file, sheet_name='extrato')
     return df
 
-@st.cache(allow_output_mutation=True)
+@st.cache_resource()
 def load_plano(uploaded_file):
     df = pd.read_excel(uploaded_file, sheet_name='plano')
     return df
 
-@st.cache(allow_output_mutation=True)    
+@st.cache_resource()    
 def load_mapa(uploaded_file):
     df = pd.read_excel(uploaded_file, sheet_name='mapa')
     return df
@@ -196,7 +196,7 @@ def abreviatura_mes(mes):
 st.sidebar.header("Carregar Ficheiro CP-FSE")
 uploaded_file = st.sidebar.file_uploader("Ficheiro CP-FSE", type=['xlsx'])
 if uploaded_file is not None:
-    try:
+    #try:
         df_movim = load_extrato(uploaded_file)
         df_plano = load_plano  (uploaded_file) 
         df_mapa  = load_mapa   (uploaded_file) 
@@ -228,336 +228,298 @@ if uploaded_file is not None:
             from df_saldos
             """)
 
+
+        # Certifique-se de que os índices dos dois DataFrames estão alinhados
         df_resultado = demonstracao_resultados()
-        
-        # Função para aplicar o estilo CSS
+        df_resultado.reset_index(inplace=True, drop=True)  # Resetando o índice se necessário
+        df_tabela = df_resultado.copy()
+
+        # Removendo a coluna 'conta' de df_tabela para não ser exibida
+        df_tabela.drop('conta', axis=1, inplace=True)
+
+        # Função ajustada para aplicar o estilo CSS
         def highlight_row(row):
-            if row['conta'] in ('PO','CO','EBITDA','RLE'):
-                return ['background-color: #D6EAF8;font-weight: bold;'] * len(row)
-            if row['conta'] in ('QUOTAS','CMVMC','FSE','CP','688'):
-                return ['background-color:  #E8F8F5 ; font-weight: bold; '] * len(row)
-            if row['conta'] in ('SUBS','FS'):
-                return [' font-weight: bold; '] * len(row)
+            # Obtendo o valor da coluna 'conta' do DataFrame original com base no índice da linha
+            conta_value = df_resultado.at[row.name, 'conta']
+            
+            if conta_value in ('PO', 'CO', 'EBITDA', 'RLE'):
+                return ['background-color: #D6EAF8; font-weight: bold;'] * len(row)
+            if conta_value in ('QUOTAS', 'CMVMC', 'FSE', 'CP', '688'):
+                return ['background-color: #E8F8F5; font-weight: bold;'] * len(row)
+            if conta_value in ('SUBS', 'FS'):
+                return ['font-weight: bold;'] * len(row)
             
             return [''] * len(row)
-    
-    
-        styled_df = df_resultado.style.apply(highlight_row, axis=1).set_table_styles([{'selector': 'th', 'props': [('min-width', '100px')]}])
-        styled_df = styled_df.hide_columns(['conta'])
-
-    
-        # Convertendo o dataframe estilizado para HTML
-        html = styled_df.hide_index().render()
-        html_css = '''
-        <style type="text/css">
-        table {
-        color: #333;
-        font-family:verdana;
-        font-size:12px;
-    
-        border-collapse:
-        collapse; 
-        border-spacing: 2;
-        }
-
-        td, th {
-        border: 1px solid transparent; /* No more visible border */
-        height: 20px;
-        }
-
-        th {
-        background: NAvy; /* Darken header a bit */
-        color: white;
-        height: 30px;
-        }
-        th:nth-child(4) {
-        background: orange; 
-        border: 1px Inset white;
-        }
-
-        th:nth-child(5) {
-        background: orange; 
-        border: 1px Inset white;
-        }
-    
-        td:nth-child(2) {
-        text-align: right;
-        }
-
-        td:nth-child(3) {
-        text-align: right;
-        }
-
-        td:nth-child(4) {
-        text-align: right;
-        }
-        td:nth-child(5) {
-        text-align: right;
-        }
-        td:nth-child(6) {
-        text-align: right;
-        }
-        td:nth-child(4), td:nth-child(5) {
-        border: 1px Ridge navy;
-    }
-
-        </style>
-        ''' 
-        with st.expander('Demonstração de Resultados'):
-            #################################################################################################################
-            ####     DEMONSTRACAO DE RESULTADOS                                                                          ####
-
-            st.subheader("Análise Comparativa últimos 3 anos")
-            # Exibindo o HTML no Streamlit
-            components.html(html_css+html,height=1280)
-
-        with st.expander('Análise Comparativa'):
-            #################################################################################################################
-            ####     GRAFICOS  MARGEM BRUTA                                                                              ####
-             
-            options = [
-                ('MOVIMENTOS EXTRATOS'),
-                ('MARGEM OPERACIONAL'),
-                ('PROVEITOS, CUSTOS E COMPORTAMENTO MARGEM'),
-                ('PRINCIPAIS RÚBRICAS FSE')
-            ]
-            c1,c2 =st.columns([1,0.3])
-            
-            selected_option = c1.selectbox('', options)
-            if selected_option=='MOVIMENTOS EXTRATOS':
-                #################################################################################################################
-                ####     MOVIMENTOS EXTRATO                                                                                  ####
-
-                st.subheader("Pesquisa de movimentos e contas")
-                show_resultado=False
-                show_resultado2=False
-                c1,c2,c3 =st.columns([1.5,0.5,3])
-
-                with c1:
-                    anos_selecionados = selecionar_ano(df_movim)
-                    anos_selecionados= sorted(anos_selecionados, reverse=True)
-
-                with c2:
-                    mes_selecionado = selecionar_mes(df_movim)      
-                with c3:
-                    df_plano['conta'] = df_plano['conta'].astype(str)
-                    df_filtrado = df_plano[df_plano['conta'].str.startswith(('6', '7'))]
-                    df_distinto = df_filtrado.drop_duplicates(subset=['conta', 'nome']).sort_values(by=['conta', 'nome'])
-                    opcoes_multiselect = [f"{row['conta']}-{row['nome']}" for index, row in df_distinto.iterrows()]
-                    # Seleção múltipla de contas com nomes
-                    selecao = st.multiselect('Selecione conta(s):', opcoes_multiselect)
-                    saldo_contas = obter_saldo_contas(list(parse_selecao(selecao)['conta']), anos_selecionados, mes_selecionado)
-
-                    mostra_tabelas=False
-                    if not saldo_contas.empty:
-                        mostra_tabelas=True
-                    
-                    else:
-                        st.write("Sem resultados.")     
-
-                if mostra_tabelas==True:
-                    c1,c2=st.columns([0.5,1]) 
-                    c1.write('#### Saldos de Contas')
-                    # st.write(saldo_contas.reset_index().style.format(subset=['valor'], formatter="{:.2f}"))  
-
-                    if len(anos_selecionados)>=3:    
-                        df_saldoscontas  = q.sqldf(f"""
-                        Select conta,mes, nome, (case when ano={anos_selecionados[0]} then valor else 0 end)   as  '{anos_selecionados[0]}',
-                                    (case when ano={anos_selecionados[1]} then valor else 0 end) as  '{anos_selecionados[1]}',
-                                    (case when ano={anos_selecionados[2]} then valor else 0 end) as  '{anos_selecionados[2]}' 
-                            from saldo_contas
-                            """)
-                        df_saldoscontas=df_saldoscontas.groupby(['conta','nome'])[[f'{anos_selecionados[0]}',f'{anos_selecionados[1]}',f'{anos_selecionados[2]}']].max().round().reset_index()
-                    if len(anos_selecionados)==2:    
-                        df_saldoscontas  = q.sqldf(f"""
-                        Select conta,mes, nome, (case when ano={anos_selecionados[0]} then valor else 0 end)   as  '{anos_selecionados[0]}',
-                                    (case when ano={anos_selecionados[1]} then valor else 0 end) as  '{anos_selecionados[1]}'
-                        
-                            from saldo_contas
-                            """)
-                        df_saldoscontas=df_saldoscontas.groupby(['conta','nome'])[[f'{anos_selecionados[0]}',f'{anos_selecionados[1]}']].max().round().reset_index()
-                    if len(anos_selecionados)==1:    
-                        df_saldoscontas  = q.sqldf(f"""
-                        Select conta,mes, nome, (case when ano={anos_selecionados[0]} then valor else 0 end) as '{anos_selecionados[0]}'
-                            from saldo_contas
-                            """)
-                        df_saldoscontas=df_saldoscontas.groupby(['conta','nome'])[[f'{anos_selecionados[0]}']].max().round().reset_index()
-
-                    c2.write(df_saldoscontas.style.format(subset=[f'{anos_selecionados[0]}'], formatter="{:.0f}"))
-
-                    st.write('#### Extrato de Movimentos de Contas')
-                    c1,c2=st.columns([0.3,1])
-                    ano_extrato = c1.selectbox('Ano',anos_selecionados)
-                    conta_extrato = c2.selectbox('Conta',selecao).split('-')[0].strip()
-                    c1,c2,c3=st.columns([0.3,0.2,1])
-                    df_mov_conta = obter_mov_conta(conta_extrato,ano_extrato,mes_selecionado).reset_index()
-                
-                    quadro=df_mov_conta[['ano','mes','descricao','conta_designacao','saldo']].style.format(subset=['saldo'], formatter="{:.2f}")
-                    st.dataframe(quadro)
-
-            if selected_option=='MARGEM OPERACIONAL':
-                st.write('##### Proveitos Operacionais')
-                df_PO=(df_resultado.query("conta in ('QUOTAS','721','711','78')"))
-                df_PO = df_PO.iloc[:, [1,2,3,6]]
-                st.write(df_PO.style,width=200)
-                st.write('##### Custos Operacionais')
-                df_CO=(df_resultado.query("conta in ('CMVMC','FSE','CP','688')"))
-                df_CO = df_CO.iloc[:, [1,2,3,6]]
-                st.write(df_CO.style,width=200)
-
-                st.write('#### Margem Operacional')
-                # Calculo da Margem Bruta
-                x1= df_resultado.query("conta in ('721','711')").iloc[:, [2,3,6]].sum()
-                x2= df_resultado.query("conta in ('CMVMC')").iloc[:, [2,3,6]]
-            
-                margem_operacional = (x1.values / x2.values) - 1
-                
-                c1,c2,c3,c4,c5=st.columns([0.5,0.5,0.5,0.5,0.5])
-
-                c2.metric(f"Ano {ano_max}",  value=f'{margem_operacional[0,0]:.2f}  %') 
-                c3.metric(f"Ano {ano_max-1}",value=f'{margem_operacional[0,1]:.2f}  %') 
-                c4.metric(f"Ano {ano_max-2}",value=f'{margem_operacional[0,2]:.2f}  %') 
-
-            if selected_option=='PROVEITOS, CUSTOS E COMPORTAMENTO MARGEM':
-                df_PO_CO=(df_resultado.query("conta in ('PO','CO')"))
-                df_PO_CO = df_PO_CO.iloc[:, [1,2,3,6]]
-                st.write(df_PO_CO.style,width=500)
-                st.write('#### Margem Operacional')
-
-                # Calculo da Margem Bruta
-                x1= df_resultado.query("conta in ('721','711')").iloc[:, [2,3,6]].sum()
-                x2= df_resultado.query("conta in ('CMVMC')").iloc[:, [2,3,6]]
-            
-                margem_operacional = (x1.values / x2.values) - 1
-                
-                c1,c2,c3,c4,c5=st.columns([0.5,0.5,0.5,0.5,0.5])
-
-                c2.metric(f"Ano {ano_max}",value=f'{margem_operacional[0,0]:.2f}  %') 
-                c3.metric(f"Ano {ano_max-1}",value=f'{margem_operacional[0,1]:.2f}  %') 
-                c4.metric(f"Ano {ano_max-2}",value=f'{margem_operacional[0,2]:.2f}  %') 
-
-                
-                c1,c2=st.columns([0.1,1])
-            
-
-                
-                
-    #------------------------------------------------------------------------------------------------
-    # Gráfico 
-    #            
-                import streamlit as st
-                import altair as alt
-
-                # Dados
-                data = {
-                    "ano": [2023,2023,2022,2022,2021,2021,],
-                    "valor": [542883, 574269, 503345,553566, 377077,339741],
-                    "Conta": ['Proveitos Operacionais','Custos Operacionais', 'Proveitos Operacionais','Custos Operacionais','Proveitos Operacionais','Custos Operacionais'], 
-                    
-                }
-
-                df=pd.DataFrame(data)
-                c2.subheader("Resultados Comparativos 3 anos")
-                chart = alt.Chart(df).mark_bar().encode(
-                    x=alt.X('ano:N'     , axis=alt.Axis(title='Ano'),sort="-x") ,
-                    y=alt.Y('valor:Q'   , axis=alt.Axis(title='Valor')) ,
-                    color = 'ano:N', column=alt.Column('Conta:N',title=None),
-                ).properties(width=200)
-                
-                c2.write("")
-                c2.write(chart)
-    #------------------------------------------------------------------------------------------------
-                
-            if selected_option=='PRINCIPAIS RÚBRICAS FSE':
-                import altair as alt
-                df_PrincipaisFSE=(df_resultado.query("conta in ('621','6223','6224','6226','6241','6242','6261','6267','6268')"))
-                df_PrincipaisFSE = df_PrincipaisFSE.iloc[:, [1,2,3,6]]
-
-                # st.write(df_PrincipaisFSE.style,width=200)
-
-                a1= df_PrincipaisFSE.iloc[:, 0].tolist()
-                a2= df_PrincipaisFSE.iloc[:, 1].tolist()
-                a3= df_PrincipaisFSE.iloc[:, 2].tolist()
-                a4= df_PrincipaisFSE.iloc[:, 3].tolist()
-            
-                # Crie um dataframe com os dados
-                df = pd.DataFrame({
-                    'FSE'         : a1,
-                    f'{ano_max}'  : a2,
-                    f'{ano_max-1}': a3,
-                    f'{ano_max-2}': a4,
-                })
-
-                # fig, ax = plt.subplots(figsize=(5, 4))
-                # df.plot(kind='barh', x='FSE', y=[f'{ano_max}',f'{ano_max-1}',f'{ano_max-2}'], ax=ax)
-                # ax.set_title('Principais Rúbricas FSE')
-                c1,c2=st.columns([0.1,1])
-                # c1.pyplot(fig)
-
-                
-                #conta, ano, valor
-                sql1=q.sqldf("""Select FSE as conta,'2023' as ano,[2023] as valor from df a """)
-                sql2=q.sqldf("""Select FSE as conta,'2022' as ano,[2022] as valor from df a """)
-                sql3=q.sqldf("""Select FSE as conta,'2021' as ano,[2021] as valor from df a """)
-
-                sql=sql1.append(sql2)
-                sql=sql.append(sql3)
-
-                chart = alt.Chart(sql).mark_bar().encode(
-                    x=alt.X('sum(valor):Q', title=None),
-                    y=alt.Y('ano:O', title=None),
-                    color='ano:N',
-                    row=alt.Row('conta:N', header=alt.Header(labelAngle=0,labelAlign='left'),title=None)
-                ).properties(width=500,height=40, title='Principais Rúbricas FSE')
-                c2.write("")
-                c2.write(chart)
-    except:
-        st.sidebar.warning("Ficheiro Inválido")
-    
-
-      
-st.sidebar.header("Importar novos movimentos de extrato")
-upfileclasse6=st.sidebar.file_uploader("Extrato Custos", type=['xlsx','xls'])
-upfileclasse7=st.sidebar.file_uploader("Extrato Proveitos", type=['xlsx','xls'])
-if upfileclasse6:
-    df1 = f.ImportarNovoFicheiro(upfileclasse6)
-if upfileclasse7:
-    df2 = f.ImportarNovoFicheiro(upfileclasse7)
-if st.sidebar.button("Gerar Novo Ficheiro CP-FSE"):
-    if upfileclasse6 and upfileclasse7:
-     
-        dfs = [df1, df2]
-        result = pd.concat(dfs)
-        df_result= f.GerarDataFrameExtrato(result)
-
-        df_result['conta']=pd.to_numeric(df_result['conta'], errors='coerce')
-        df_result['dr']=pd.to_numeric(df_result['dr'], errors='coerce')
-        df_result['nint']=pd.to_numeric(df_result['nint'], errors='coerce')
-        df_result['debito']=pd.to_numeric(df_result['debito'], errors='coerce')
-        df_result['credito']=pd.to_numeric(df_result['credito'], errors='coerce')
-        df_result['saldo_devedor']=pd.to_numeric(df_result['saldo_devedor'], errors='coerce')
-        df_result['saldo_credor']=pd.to_numeric(df_result['saldo_credor'], errors='coerce')
-
-        df_result.fillna(0, inplace=True)
-        #df_result[['ano','mes','conta','conta_designacao','descricao','debito','nint','credito','saldo_devedor','saldo_credor']].to_excel('teste_mov_importados.xlsx',index=None)
-        df_resposta = df_result[['ano','mes','conta','conta_designacao','descricao','debito','nint','credito','saldo_devedor','saldo_credor']]
-        nome_ficheiro='CP-SFE-2023-v1'
-        ficheiro = io.BytesIO()
+        c_delta= u'Δ' + f'({str(ano_max)[-2:]},{str(ano_max-1)[-2:]})'
+        # Função para colorir toda a coluna de amarelo
+        def colorir_coluna_amarelo(col):
+            return ['background-color: #FFFFE0' if col.name == c_delta else '' for _ in col]
         
-        download_file = df_resposta.to_excel(ficheiro, encoding='utf-8', index=False, header=True)
-        ficheiro.seek(0)  # reset do pointer
-        b64 = base64.b64encode(ficheiro.read()).decode()  
-        link_download= f'''<div style=" background-color:white; 
-                                        margin-top:35px;
-                                        text-align:center;
-                                        text-decoration:none;
-                                        background-color:#F6F9F6;
-                                        padding:10px 5px 5px 5px; 
-                                        border: 1px solid green; 
-                                        border-radius:10px 10px 10px 10px;">
-                                <a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" 
-                                        download="{nome_ficheiro}.xlsx">Download</a>
-                            </div>'''
-        st.sidebar.markdown(link_download, unsafe_allow_html=True)
-    else:
-        st.sidebar.warning('É necessário importar 2 ficheiros de movimentos extrato.')
+        st.subheader(f'{mes_abrev} {ano_max}')
+        # Aplicando o estilo ao df_tabela
+        styled_df = df_tabela.style.apply(highlight_row, axis=1)
+        styled_df = styled_df.format({ f'{mes_abrev} {ano_max}': '{:.0f}'
+                                      ,f'{mes_abrev} {ano_max-1}': '{:.0f}'
+                                      ,f'{mes_abrev} {ano_max-2}': '{:.0f}'
+                                      ,'Valor': '{:.0f}'}
+                                      ).set_properties(subset=['Valor',f'{mes_abrev} {ano_max}',f'{mes_abrev} {ano_max-1}',f'{mes_abrev} {ano_max-2}', c_delta], **{'text-align': 'right'}).apply(colorir_coluna_amarelo)
+        
+
+
+
+        with st.expander('Demonstração de Resultados'):
+             #################################################################################################################
+             ####     DEMONSTRACAO DE RESULTADOS                                                                          ####
+             st.subheader("Análise Comparativa últimos 3 anos")
+             # Exibindo o HTML no Streamlit
+             html = styled_df.to_html(index=False)
+             st.markdown(html, unsafe_allow_html=True)
+             st.write("")
+#         with st.expander('Análise Comparativa'):
+#             #################################################################################################################
+#             ####     GRAFICOS  MARGEM BRUTA                                                                              ####
+             
+#             options = [
+#                 ('MOVIMENTOS EXTRATOS'),
+#                 ('MARGEM OPERACIONAL'),
+#                 ('PROVEITOS, CUSTOS E COMPORTAMENTO MARGEM'),
+#                 ('PRINCIPAIS RÚBRICAS FSE')
+#             ]
+#             c1,c2 =st.columns([1,0.3])
+            
+#             selected_option = c1.selectbox('', options)
+#             if selected_option=='MOVIMENTOS EXTRATOS':
+#                 #################################################################################################################
+#                 ####     MOVIMENTOS EXTRATO                                                                                  ####
+
+#                 st.subheader("Pesquisa de movimentos e contas")
+#                 show_resultado=False
+#                 show_resultado2=False
+#                 c1,c2,c3 =st.columns([1.5,0.5,3])
+
+#                 with c1:
+#                     anos_selecionados = selecionar_ano(df_movim)
+#                     anos_selecionados= sorted(anos_selecionados, reverse=True)
+
+#                 with c2:
+#                     mes_selecionado = selecionar_mes(df_movim)      
+#                 with c3:
+#                     df_plano['conta'] = df_plano['conta'].astype(str)
+#                     df_filtrado = df_plano[df_plano['conta'].str.startswith(('6', '7'))]
+#                     df_distinto = df_filtrado.drop_duplicates(subset=['conta', 'nome']).sort_values(by=['conta', 'nome'])
+#                     opcoes_multiselect = [f"{row['conta']}-{row['nome']}" for index, row in df_distinto.iterrows()]
+#                     # Seleção múltipla de contas com nomes
+#                     selecao = st.multiselect('Selecione conta(s):', opcoes_multiselect)
+#                     saldo_contas = obter_saldo_contas(list(parse_selecao(selecao)['conta']), anos_selecionados, mes_selecionado)
+
+#                     mostra_tabelas=False
+#                     if not saldo_contas.empty:
+#                         mostra_tabelas=True
+                    
+#                     else:
+#                         st.write("Sem resultados.")     
+
+#                 if mostra_tabelas==True:
+#                     c1,c2=st.columns([0.5,1]) 
+#                     c1.write('#### Saldos de Contas')
+#                     # st.write(saldo_contas.reset_index().style.format(subset=['valor'], formatter="{:.2f}"))  
+
+#                     if len(anos_selecionados)>=3:    
+#                         df_saldoscontas  = q.sqldf(f"""
+#                         Select conta,mes, nome, (case when ano={anos_selecionados[0]} then valor else 0 end)   as  '{anos_selecionados[0]}',
+#                                     (case when ano={anos_selecionados[1]} then valor else 0 end) as  '{anos_selecionados[1]}',
+#                                     (case when ano={anos_selecionados[2]} then valor else 0 end) as  '{anos_selecionados[2]}' 
+#                             from saldo_contas
+#                             """)
+#                         df_saldoscontas=df_saldoscontas.groupby(['conta','nome'])[[f'{anos_selecionados[0]}',f'{anos_selecionados[1]}',f'{anos_selecionados[2]}']].max().round().reset_index()
+#                     if len(anos_selecionados)==2:    
+#                         df_saldoscontas  = q.sqldf(f"""
+#                         Select conta,mes, nome, (case when ano={anos_selecionados[0]} then valor else 0 end)   as  '{anos_selecionados[0]}',
+#                                     (case when ano={anos_selecionados[1]} then valor else 0 end) as  '{anos_selecionados[1]}'
+                        
+#                             from saldo_contas
+#                             """)
+#                         df_saldoscontas=df_saldoscontas.groupby(['conta','nome'])[[f'{anos_selecionados[0]}',f'{anos_selecionados[1]}']].max().round().reset_index()
+#                     if len(anos_selecionados)==1:    
+#                         df_saldoscontas  = q.sqldf(f"""
+#                         Select conta,mes, nome, (case when ano={anos_selecionados[0]} then valor else 0 end) as '{anos_selecionados[0]}'
+#                             from saldo_contas
+#                             """)
+#                         df_saldoscontas=df_saldoscontas.groupby(['conta','nome'])[[f'{anos_selecionados[0]}']].max().round().reset_index()
+
+#                     c2.write(df_saldoscontas.style.format(subset=[f'{anos_selecionados[0]}'], formatter="{:.0f}"))
+
+#                     st.write('#### Extrato de Movimentos de Contas')
+#                     c1,c2=st.columns([0.3,1])
+#                     ano_extrato = c1.selectbox('Ano',anos_selecionados)
+#                     conta_extrato = c2.selectbox('Conta',selecao).split('-')[0].strip()
+#                     c1,c2,c3=st.columns([0.3,0.2,1])
+#                     df_mov_conta = obter_mov_conta(conta_extrato,ano_extrato,mes_selecionado).reset_index()
+                
+#                     quadro=df_mov_conta[['ano','mes','descricao','conta_designacao','saldo']].style.format(subset=['saldo'], formatter="{:.2f}")
+#                     st.dataframe(quadro)
+
+#             if selected_option=='MARGEM OPERACIONAL':
+#                 st.write('##### Proveitos Operacionais')
+#                 df_PO=(df_resultado.query("conta in ('QUOTAS','721','711','78')"))
+#                 df_PO = df_PO.iloc[:, [1,2,3,6]]
+#                 st.write(df_PO.style,width=200)
+#                 st.write('##### Custos Operacionais')
+#                 df_CO=(df_resultado.query("conta in ('CMVMC','FSE','CP','688')"))
+#                 df_CO = df_CO.iloc[:, [1,2,3,6]]
+#                 st.write(df_CO.style,width=200)
+
+#                 st.write('#### Margem Operacional')
+#                 # Calculo da Margem Bruta
+#                 x1= df_resultado.query("conta in ('721','711')").iloc[:, [2,3,6]].sum()
+#                 x2= df_resultado.query("conta in ('CMVMC')").iloc[:, [2,3,6]]
+            
+#                 margem_operacional = (x1.values / x2.values) - 1
+                
+#                 c1,c2,c3,c4,c5=st.columns([0.5,0.5,0.5,0.5,0.5])
+
+#                 c2.metric(f"Ano {ano_max}",  value=f'{margem_operacional[0,0]:.2f}  %') 
+#                 c3.metric(f"Ano {ano_max-1}",value=f'{margem_operacional[0,1]:.2f}  %') 
+#                 c4.metric(f"Ano {ano_max-2}",value=f'{margem_operacional[0,2]:.2f}  %') 
+
+#             if selected_option=='PROVEITOS, CUSTOS E COMPORTAMENTO MARGEM':
+#                 df_PO_CO=(df_resultado.query("conta in ('PO','CO')"))
+#                 df_PO_CO = df_PO_CO.iloc[:, [1,2,3,6]]
+#                 st.write(df_PO_CO.style,width=500)
+#                 st.write('#### Margem Operacional')
+
+#                 # Calculo da Margem Bruta
+#                 x1= df_resultado.query("conta in ('721','711')").iloc[:, [2,3,6]].sum()
+#                 x2= df_resultado.query("conta in ('CMVMC')").iloc[:, [2,3,6]]
+            
+#                 margem_operacional = (x1.values / x2.values) - 1
+                
+#                 c1,c2,c3,c4,c5=st.columns([0.5,0.5,0.5,0.5,0.5])
+
+#                 c2.metric(f"Ano {ano_max}",value=f'{margem_operacional[0,0]:.2f}  %') 
+#                 c3.metric(f"Ano {ano_max-1}",value=f'{margem_operacional[0,1]:.2f}  %') 
+#                 c4.metric(f"Ano {ano_max-2}",value=f'{margem_operacional[0,2]:.2f}  %') 
+
+                
+#                 c1,c2=st.columns([0.1,1])
+            
+
+                
+                
+#     #------------------------------------------------------------------------------------------------
+#     # Gráfico 
+#     #            
+#                 import streamlit as st
+#                 import altair as alt
+
+#                 # Dados
+#                 data = {
+#                     "ano": [2023,2023,2022,2022,2021,2021,],
+#                     "valor": [542883, 574269, 503345,553566, 377077,339741],
+#                     "Conta": ['Proveitos Operacionais','Custos Operacionais', 'Proveitos Operacionais','Custos Operacionais','Proveitos Operacionais','Custos Operacionais'], 
+                    
+#                 }
+
+#                 df=pd.DataFrame(data)
+#                 c2.subheader("Resultados Comparativos 3 anos")
+#                 chart = alt.Chart(df).mark_bar().encode(
+#                     x=alt.X('ano:N'     , axis=alt.Axis(title='Ano'),sort="-x") ,
+#                     y=alt.Y('valor:Q'   , axis=alt.Axis(title='Valor')) ,
+#                     color = 'ano:N', column=alt.Column('Conta:N',title=None),
+#                 ).properties(width=200)
+                
+#                 c2.write("")
+#                 c2.write(chart)
+#     #------------------------------------------------------------------------------------------------
+                
+#             if selected_option=='PRINCIPAIS RÚBRICAS FSE':
+#                 import altair as alt
+#                 df_PrincipaisFSE=(df_resultado.query("conta in ('621','6223','6224','6226','6241','6242','6261','6267','6268')"))
+#                 df_PrincipaisFSE = df_PrincipaisFSE.iloc[:, [1,2,3,6]]
+
+#                 # st.write(df_PrincipaisFSE.style,width=200)
+
+#                 a1= df_PrincipaisFSE.iloc[:, 0].tolist()
+#                 a2= df_PrincipaisFSE.iloc[:, 1].tolist()
+#                 a3= df_PrincipaisFSE.iloc[:, 2].tolist()
+#                 a4= df_PrincipaisFSE.iloc[:, 3].tolist()
+            
+#                 # Crie um dataframe com os dados
+#                 df = pd.DataFrame({
+#                     'FSE'         : a1,
+#                     f'{ano_max}'  : a2,
+#                     f'{ano_max-1}': a3,
+#                     f'{ano_max-2}': a4,
+#                 })
+
+#                 # fig, ax = plt.subplots(figsize=(5, 4))
+#                 # df.plot(kind='barh', x='FSE', y=[f'{ano_max}',f'{ano_max-1}',f'{ano_max-2}'], ax=ax)
+#                 # ax.set_title('Principais Rúbricas FSE')
+#                 c1,c2=st.columns([0.1,1])
+#                 # c1.pyplot(fig)
+
+                
+#                 #conta, ano, valor
+#                 sql1=q.sqldf("""Select FSE as conta,'2023' as ano,[2023] as valor from df a """)
+#                 sql2=q.sqldf("""Select FSE as conta,'2022' as ano,[2022] as valor from df a """)
+#                 sql3=q.sqldf("""Select FSE as conta,'2021' as ano,[2021] as valor from df a """)
+
+#                 sql=sql1.append(sql2)
+#                 sql=sql.append(sql3)
+
+#                 chart = alt.Chart(sql).mark_bar().encode(
+#                     x=alt.X('sum(valor):Q', title=None),
+#                     y=alt.Y('ano:O', title=None),
+#                     color='ano:N',
+#                     row=alt.Row('conta:N', header=alt.Header(labelAngle=0,labelAlign='left'),title=None)
+#                 ).properties(width=500,height=40, title='Principais Rúbricas FSE')
+#                 c2.write("")
+#                 c2.write(chart)
+#  #   except:
+#  #       st.sidebar.warning("Ficheiro Inválido")
+      
+# st.sidebar.header("Importar novos movimentos de extrato")
+# upfileclasse6=st.sidebar.file_uploader("Extrato Custos", type=['xlsx','xls'])
+# upfileclasse7=st.sidebar.file_uploader("Extrato Proveitos", type=['xlsx','xls'])
+# if upfileclasse6:
+#     df1 = f.ImportarNovoFicheiro(upfileclasse6)
+# if upfileclasse7:
+#     df2 = f.ImportarNovoFicheiro(upfileclasse7)
+# if st.sidebar.button("Gerar Novo Ficheiro CP-FSE"):
+#     if upfileclasse6 and upfileclasse7:
+     
+#         dfs = [df1, df2]
+#         result = pd.concat(dfs)
+#         df_result= f.GerarDataFrameExtrato(result)
+
+#         df_result['conta']=pd.to_numeric(df_result['conta'], errors='coerce')
+#         df_result['dr']=pd.to_numeric(df_result['dr'], errors='coerce')
+#         df_result['nint']=pd.to_numeric(df_result['nint'], errors='coerce')
+#         df_result['debito']=pd.to_numeric(df_result['debito'], errors='coerce')
+#         df_result['credito']=pd.to_numeric(df_result['credito'], errors='coerce')
+#         df_result['saldo_devedor']=pd.to_numeric(df_result['saldo_devedor'], errors='coerce')
+#         df_result['saldo_credor']=pd.to_numeric(df_result['saldo_credor'], errors='coerce')
+
+#         df_result.fillna(0, inplace=True)
+#         #df_result[['ano','mes','conta','conta_designacao','descricao','debito','nint','credito','saldo_devedor','saldo_credor']].to_excel('teste_mov_importados.xlsx',index=None)
+#         df_resposta = df_result[['ano','mes','conta','conta_designacao','descricao','debito','nint','credito','saldo_devedor','saldo_credor']]
+#         nome_ficheiro='CP-SFE-2023-v1'
+#         ficheiro = io.BytesIO()
+        
+#         download_file = df_resposta.to_excel(ficheiro, encoding='utf-8', index=False, header=True)
+#         ficheiro.seek(0)  # reset do pointer
+#         b64 = base64.b64encode(ficheiro.read()).decode()  
+#         link_download= f'''<div style=" background-color:white; 
+#                                         margin-top:35px;
+#                                         text-align:center;
+#                                         text-decoration:none;
+#                                         background-color:#F6F9F6;
+#                                         padding:10px 5px 5px 5px; 
+#                                         border: 1px solid green; 
+#                                         border-radius:10px 10px 10px 10px;">
+#                                 <a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" 
+#                                         download="{nome_ficheiro}.xlsx">Download</a>
+#                             </div>'''
+#         st.sidebar.markdown(link_download, unsafe_allow_html=True)
+#     else:
+#         st.sidebar.warning('É necessário importar 2 ficheiros de movimentos extrato.')
