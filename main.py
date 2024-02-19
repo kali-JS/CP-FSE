@@ -3,7 +3,7 @@ import pandas as pd
 import st_helper as hp
 import pyBetterSql as q
 import streamlit.components.v1 as components
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import ETL_ficheiros as f
 import io 
 import base64
