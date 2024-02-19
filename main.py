@@ -7,6 +7,7 @@ import streamlit.components.v1 as components
 import ETL_ficheiros as f
 import io 
 import base64
+import openpyxl
 
 st.set_page_config(layout="wide")
 hp.remove_footer(st)
