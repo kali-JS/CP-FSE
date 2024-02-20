@@ -254,6 +254,7 @@ if uploaded_file is not None:
                 return ['font-weight: bold;'] * len(row)
             
             return [''] * len(row)
+        
         c_delta= u'Δ' + f'({str(ano_max)[-2:]},{str(ano_max-1)[-2:]})'
         # Função para colorir toda a coluna de amarelo
         def colorir_coluna_amarelo(col):
@@ -279,134 +280,149 @@ if uploaded_file is not None:
              html = styled_df.to_html(index=False)
              st.markdown(html, unsafe_allow_html=True)
              st.write("")
-#         with st.expander('Análise Comparativa'):
-#             #################################################################################################################
-#             ####     GRAFICOS  MARGEM BRUTA                                                                              ####
+        with st.expander('Análise Comparativa'):
+            #################################################################################################################
+            ####     GRAFICOS  MARGEM BRUTA                                                                              ####
              
-#             options = [
-#                 ('MOVIMENTOS EXTRATOS'),
-#                 ('MARGEM OPERACIONAL'),
-#                 ('PROVEITOS, CUSTOS E COMPORTAMENTO MARGEM'),
-#                 ('PRINCIPAIS RÚBRICAS FSE')
-#             ]
-#             c1,c2 =st.columns([1,0.3])
+            options = [
+                ('MOVIMENTOS EXTRATOS'),
+                ('MARGEM OPERACIONAL'),
+                ('PROVEITOS, CUSTOS E COMPORTAMENTO MARGEM'),
+                ('PRINCIPAIS RÚBRICAS FSE')
+            ]
+            c1,c2 =st.columns([1,0.3])
             
-#             selected_option = c1.selectbox('', options)
-#             if selected_option=='MOVIMENTOS EXTRATOS':
-#                 #################################################################################################################
-#                 ####     MOVIMENTOS EXTRATO                                                                                  ####
+            selected_option = c1.selectbox('', options)
+            if selected_option=='MOVIMENTOS EXTRATOS':
+                #################################################################################################################
+                ####     MOVIMENTOS EXTRATO                                                                                  ####
 
-#                 st.subheader("Pesquisa de movimentos e contas")
-#                 show_resultado=False
-#                 show_resultado2=False
-#                 c1,c2,c3 =st.columns([1.5,0.5,3])
+                st.subheader("Pesquisa de movimentos e contas")
+                show_resultado=False
+                show_resultado2=False
+                c1,c2,c3 =st.columns([1.5,0.5,3])
 
-#                 with c1:
-#                     anos_selecionados = selecionar_ano(df_movim)
-#                     anos_selecionados= sorted(anos_selecionados, reverse=True)
+                with c1:
+                    anos_selecionados = selecionar_ano(df_movim)
+                    anos_selecionados= sorted(anos_selecionados, reverse=True)
 
-#                 with c2:
-#                     mes_selecionado = selecionar_mes(df_movim)      
-#                 with c3:
-#                     df_plano['conta'] = df_plano['conta'].astype(str)
-#                     df_filtrado = df_plano[df_plano['conta'].str.startswith(('6', '7'))]
-#                     df_distinto = df_filtrado.drop_duplicates(subset=['conta', 'nome']).sort_values(by=['conta', 'nome'])
-#                     opcoes_multiselect = [f"{row['conta']}-{row['nome']}" for index, row in df_distinto.iterrows()]
-#                     # Seleção múltipla de contas com nomes
-#                     selecao = st.multiselect('Selecione conta(s):', opcoes_multiselect)
-#                     saldo_contas = obter_saldo_contas(list(parse_selecao(selecao)['conta']), anos_selecionados, mes_selecionado)
+                with c2:
+                    mes_selecionado = selecionar_mes(df_movim)      
+                with c3:
+                    df_plano['conta'] = df_plano['conta'].astype(str)
+                    df_filtrado = df_plano[df_plano['conta'].str.startswith(('6', '7'))]
+                    df_distinto = df_filtrado.drop_duplicates(subset=['conta', 'nome']).sort_values(by=['conta', 'nome'])
+                    opcoes_multiselect = [f"{row['conta']}-{row['nome']}" for index, row in df_distinto.iterrows()]
+                    # Seleção múltipla de contas com nomes
+                    selecao = st.multiselect('Selecione conta(s):', opcoes_multiselect)
+                    saldo_contas = obter_saldo_contas(list(parse_selecao(selecao)['conta']), anos_selecionados, mes_selecionado)
 
-#                     mostra_tabelas=False
-#                     if not saldo_contas.empty:
-#                         mostra_tabelas=True
+                    mostra_tabelas=False
+                    if not saldo_contas.empty:
+                        mostra_tabelas=True
                     
-#                     else:
-#                         st.write("Sem resultados.")     
+                    else:
+                        st.write("Sem resultados.")     
 
-#                 if mostra_tabelas==True:
-#                     c1,c2=st.columns([0.5,1]) 
-#                     c1.write('#### Saldos de Contas')
-#                     # st.write(saldo_contas.reset_index().style.format(subset=['valor'], formatter="{:.2f}"))  
+                if mostra_tabelas==True:
+                    c1,c2=st.columns([0.5,1]) 
+                    c1.write('#### Saldos de Contas')
+                
 
-#                     if len(anos_selecionados)>=3:    
-#                         df_saldoscontas  = q.sqldf(f"""
-#                         Select conta,mes, nome, (case when ano={anos_selecionados[0]} then valor else 0 end)   as  '{anos_selecionados[0]}',
-#                                     (case when ano={anos_selecionados[1]} then valor else 0 end) as  '{anos_selecionados[1]}',
-#                                     (case when ano={anos_selecionados[2]} then valor else 0 end) as  '{anos_selecionados[2]}' 
-#                             from saldo_contas
-#                             """)
-#                         df_saldoscontas=df_saldoscontas.groupby(['conta','nome'])[[f'{anos_selecionados[0]}',f'{anos_selecionados[1]}',f'{anos_selecionados[2]}']].max().round().reset_index()
-#                     if len(anos_selecionados)==2:    
-#                         df_saldoscontas  = q.sqldf(f"""
-#                         Select conta,mes, nome, (case when ano={anos_selecionados[0]} then valor else 0 end)   as  '{anos_selecionados[0]}',
-#                                     (case when ano={anos_selecionados[1]} then valor else 0 end) as  '{anos_selecionados[1]}'
+                    if len(anos_selecionados)>=3:    
+                        df_saldoscontas  = q.sqldf(f"""
+                        Select conta,mes, nome, (case when ano={anos_selecionados[0]} then valor else 0 end)   as  '{anos_selecionados[0]}',
+                                    (case when ano={anos_selecionados[1]} then valor else 0 end) as  '{anos_selecionados[1]}',
+                                    (case when ano={anos_selecionados[2]} then valor else 0 end) as  '{anos_selecionados[2]}' 
+                            from saldo_contas
+                            """)
+                        df_saldoscontas=df_saldoscontas.groupby(['conta','nome'])[[f'{anos_selecionados[0]}',f'{anos_selecionados[1]}',f'{anos_selecionados[2]}']].max().round().reset_index()
+                        df_tabela_saldos=df_saldoscontas.style.format(subset=[f'{anos_selecionados[0]}',f'{anos_selecionados[1]}',f'{anos_selecionados[2]}'], formatter="{:.0f}").set_properties(subset=[f'{anos_selecionados[0]}',f'{anos_selecionados[1]}',f'{anos_selecionados[2]}'], **{'text-align': 'right'})
+                    if len(anos_selecionados)==2:    
+                        df_saldoscontas  = q.sqldf(f"""
+                        Select conta,mes, nome, (case when ano={anos_selecionados[0]} then valor else 0 end)   as  '{anos_selecionados[0]}',
+                                    (case when ano={anos_selecionados[1]} then valor else 0 end) as  '{anos_selecionados[1]}'
                         
-#                             from saldo_contas
-#                             """)
-#                         df_saldoscontas=df_saldoscontas.groupby(['conta','nome'])[[f'{anos_selecionados[0]}',f'{anos_selecionados[1]}']].max().round().reset_index()
-#                     if len(anos_selecionados)==1:    
-#                         df_saldoscontas  = q.sqldf(f"""
-#                         Select conta,mes, nome, (case when ano={anos_selecionados[0]} then valor else 0 end) as '{anos_selecionados[0]}'
-#                             from saldo_contas
-#                             """)
-#                         df_saldoscontas=df_saldoscontas.groupby(['conta','nome'])[[f'{anos_selecionados[0]}']].max().round().reset_index()
+                            from saldo_contas
+                            """)
+                        df_saldoscontas=df_saldoscontas.groupby(['conta','nome'])[[f'{anos_selecionados[0]}',f'{anos_selecionados[1]}']].max().round().reset_index()
+                        df_tabela_saldos=df_saldoscontas.style.format(subset=[f'{anos_selecionados[0]}',f'{anos_selecionados[1]}'], formatter="{:.0f}").set_properties(subset=[f'{anos_selecionados[0]}',f'{anos_selecionados[1]}'], **{'text-align': 'right'})
+                    if len(anos_selecionados)==1:    
+                        df_saldoscontas  = q.sqldf(f"""
+                        Select conta,mes, nome, (case when ano={anos_selecionados[0]} then valor else 0 end) as '{anos_selecionados[0]}'
+                            from saldo_contas
+                            """)
+                        df_saldoscontas=df_saldoscontas.groupby(['conta','nome'])[[f'{anos_selecionados[0]}']].max().round().reset_index()
+                        df_tabela_saldos=df_saldoscontas.style.format(subset=[f'{anos_selecionados[0]}'], formatter="{:.0f}").set_properties(subset=[f'{anos_selecionados[0]}'], **{'text-align': 'right'})
+                    
+                    html = df_tabela_saldos.to_html(index=False)
+                    st.markdown(html, unsafe_allow_html=True)
 
-#                     c2.write(df_saldoscontas.style.format(subset=[f'{anos_selecionados[0]}'], formatter="{:.0f}"))
-
-#                     st.write('#### Extrato de Movimentos de Contas')
-#                     c1,c2=st.columns([0.3,1])
-#                     ano_extrato = c1.selectbox('Ano',anos_selecionados)
-#                     conta_extrato = c2.selectbox('Conta',selecao).split('-')[0].strip()
-#                     c1,c2,c3=st.columns([0.3,0.2,1])
-#                     df_mov_conta = obter_mov_conta(conta_extrato,ano_extrato,mes_selecionado).reset_index()
+                    st.write('#### Extrato de Movimentos de Contas')
+                    c1,c2=st.columns([0.3,1])
+                    ano_extrato = c1.selectbox('Ano',anos_selecionados)
+                    conta_extrato = c2.selectbox('Conta',selecao).split('-')[0].strip()
+                    c1,c2,c3=st.columns([0.3,0.2,1])
+                    df_mov_conta = obter_mov_conta(conta_extrato,ano_extrato,mes_selecionado).reset_index()
                 
-#                     quadro=df_mov_conta[['ano','mes','descricao','conta_designacao','saldo']].style.format(subset=['saldo'], formatter="{:.2f}")
-#                     st.dataframe(quadro)
+                    quadro=df_mov_conta[['ano','mes','descricao','conta_designacao','saldo']].style.format(subset=['saldo'], formatter="{:.0f}").set_properties(subset=['saldo'], **{'text-align': 'right'})
+                    # st.dataframe(quadro)
+                    html = quadro.to_html(index=False)
+                    st.markdown(html, unsafe_allow_html=True)
+                    st.write("")
 
-#             if selected_option=='MARGEM OPERACIONAL':
-#                 st.write('##### Proveitos Operacionais')
-#                 df_PO=(df_resultado.query("conta in ('QUOTAS','721','711','78')"))
-#                 df_PO = df_PO.iloc[:, [1,2,3,6]]
-#                 st.write(df_PO.style,width=200)
-#                 st.write('##### Custos Operacionais')
-#                 df_CO=(df_resultado.query("conta in ('CMVMC','FSE','CP','688')"))
-#                 df_CO = df_CO.iloc[:, [1,2,3,6]]
-#                 st.write(df_CO.style,width=200)
-
-#                 st.write('#### Margem Operacional')
-#                 # Calculo da Margem Bruta
-#                 x1= df_resultado.query("conta in ('721','711')").iloc[:, [2,3,6]].sum()
-#                 x2= df_resultado.query("conta in ('CMVMC')").iloc[:, [2,3,6]]
+            if selected_option=='MARGEM OPERACIONAL':
+                st.write('##### Proveitos Operacionais')
+                df_PO=(df_resultado.query("conta in ('QUOTAS','721','711','78')"))
+                df_PO = df_PO.iloc[:, [1,2,3,6]]
+              
+                html = df_PO.to_html(index=False)
+                st.markdown(html, unsafe_allow_html=True)
+                st.write("")
+                st.write('##### Custos Operacionais')
+                df_CO=(df_resultado.query("conta in ('CMVMC','FSE','CP','688')"))
+                df_CO = df_CO.iloc[:, [1,2,3,6]]
+                #st.write(df_CO.style,width=200)
+                html = df_CO.to_html(index=False)
+                st.markdown(html, unsafe_allow_html=True)
+                st.write('#### Margem Operacional')
+                # Calculo da Margem Bruta
+                x1= df_resultado.query("conta in ('721','711')").iloc[:, [2,3,6]].sum()
+                x2= df_resultado.query("conta in ('CMVMC')").iloc[:, [2,3,6]]
             
-#                 margem_operacional = (x1.values / x2.values) - 1
+                margem_operacional = (x1.values / x2.values) - 1
                 
-#                 c1,c2,c3,c4,c5=st.columns([0.5,0.5,0.5,0.5,0.5])
+                c1,c2,c3,c4,c5=st.columns([0.5,0.5,0.5,0.5,0.5])
 
-#                 c2.metric(f"Ano {ano_max}",  value=f'{margem_operacional[0,0]:.2f}  %') 
-#                 c3.metric(f"Ano {ano_max-1}",value=f'{margem_operacional[0,1]:.2f}  %') 
-#                 c4.metric(f"Ano {ano_max-2}",value=f'{margem_operacional[0,2]:.2f}  %') 
+                c2.metric(f"Ano {ano_max}",  value=f'{margem_operacional[0,0]:.2f}  %') 
+                c3.metric(f"Ano {ano_max-1}",value=f'{margem_operacional[0,1]:.2f}  %') 
+                c4.metric(f"Ano {ano_max-2}",value=f'{margem_operacional[0,2]:.2f}  %') 
 
-#             if selected_option=='PROVEITOS, CUSTOS E COMPORTAMENTO MARGEM':
-#                 df_PO_CO=(df_resultado.query("conta in ('PO','CO')"))
-#                 df_PO_CO = df_PO_CO.iloc[:, [1,2,3,6]]
-#                 st.write(df_PO_CO.style,width=500)
-#                 st.write('#### Margem Operacional')
+            if selected_option=='PROVEITOS, CUSTOS E COMPORTAMENTO MARGEM':
+                df_PO_CO=(df_resultado.query("conta in ('PO','CO')"))
+                df_PO_CO = df_PO_CO.iloc[:, [1,2,3,6]]
+                #st.write(df_PO_CO.style,width=500)
+                html = df_PO_CO.to_html(index=False)
+                st.markdown(html, unsafe_allow_html=True)
+                st.write("")
+                st.write('#### Margem Operacional')
 
-#                 # Calculo da Margem Bruta
-#                 x1= df_resultado.query("conta in ('721','711')").iloc[:, [2,3,6]].sum()
-#                 x2= df_resultado.query("conta in ('CMVMC')").iloc[:, [2,3,6]]
+                # Calculo da Margem Bruta
+                x1= df_resultado.query("conta in ('721','711')").iloc[:, [2,3,6]].sum()
+                x2= df_resultado.query("conta in ('CMVMC')").iloc[:, [2,3,6]]
             
-#                 margem_operacional = (x1.values / x2.values) - 1
+                margem_operacional = (x1.values / x2.values) - 1
                 
-#                 c1,c2,c3,c4,c5=st.columns([0.5,0.5,0.5,0.5,0.5])
+                c1,c2,c3,c4,c5=st.columns([0.5,0.5,0.5,0.5,0.5])
 
-#                 c2.metric(f"Ano {ano_max}",value=f'{margem_operacional[0,0]:.2f}  %') 
-#                 c3.metric(f"Ano {ano_max-1}",value=f'{margem_operacional[0,1]:.2f}  %') 
-#                 c4.metric(f"Ano {ano_max-2}",value=f'{margem_operacional[0,2]:.2f}  %') 
+                c2.metric(f"Ano {ano_max}",value=f'{margem_operacional[0,0]:.2f}  %') 
+                c3.metric(f"Ano {ano_max-1}",value=f'{margem_operacional[0,1]:.2f}  %') 
+                c4.metric(f"Ano {ano_max-2}",value=f'{margem_operacional[0,2]:.2f}  %') 
 
                 
-#                 c1,c2=st.columns([0.1,1])
+                c1,c2=st.columns([0.1,1])
             
+
 
                 
                 
